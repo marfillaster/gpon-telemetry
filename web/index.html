@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>GPON telemetry</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --line:#30363d; --fg:#e6edf3;
+    --muted:#8b949e; --ok:#3fb950; --bad:#f85149; --rx:#58a6ff;
+    --tx:#d2a8ff; --temp:#f0883e; --grid:#21262d;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--fg);
+    font:14px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  .wrap{max-width:980px;margin:0 auto;padding:20px 16px 60px}
+  h1{font-size:16px;font-weight:600;margin:0 0 2px;letter-spacing:.02em}
+  .sub{color:var(--muted);font-size:12px;margin:0 0 14px}
+  .badge{display:inline-block;padding:2px 10px;border-radius:999px;
+    font-weight:600;font-size:12px;vertical-align:middle;margin-left:8px}
+  .badge.ok{background:rgba(63,185,80,.15);color:var(--ok);
+    border:1px solid rgba(63,185,80,.4)}
+  .badge.bad{background:rgba(248,81,73,.15);color:var(--bad);
+    border:1px solid rgba(248,81,73,.4)}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+    gap:10px;margin:0 0 22px}
+  .card{background:var(--panel);border:1px solid var(--line);
+    border-radius:8px;padding:12px 14px}
+  .card .k{color:var(--muted);font-size:11px;text-transform:uppercase;
+    letter-spacing:.06em}
+  .card .v{font-size:22px;font-weight:600;margin-top:4px}
+  .card .u{color:var(--muted);font-size:12px;font-weight:400}
+  .ranges{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 18px}
+  .ranges button{appearance:none;background:transparent;color:var(--muted);
+    border:1px solid var(--line);border-radius:6px;padding:5px 10px;
+    font:600 12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    cursor:pointer}
+  .ranges button.active{background:var(--fg);border-color:var(--fg);
+    color:var(--bg)}
+  .chart{background:var(--panel);border:1px solid var(--line);
+    border-radius:8px;padding:14px 14px 8px;margin-bottom:16px}
+  .chart h2{font-size:12px;color:var(--muted);text-transform:uppercase;
+    letter-spacing:.06em;margin:0 0 8px;font-weight:600}
+  .legend{font-size:12px;color:var(--muted);margin-left:10px;font-weight:400}
+  .legend i{display:inline-block;width:10px;height:3px;vertical-align:middle;
+    margin:0 4px 0 12px}
+  canvas{width:100%;height:220px;display:block}
+  footer{color:var(--muted);font-size:11px;margin-top:20px;line-height:1.7}
+  a{color:var(--rx)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>GPON telemetry<span id="badge" class="badge">…</span></h1>
+  <p class="sub">Boa status page · polled by container HTTP every 5&nbsp;min ·
+    <span id="updated">loading…</span></p>
+
+  <div class="ranges" id="ranges">
+    <button type="button" data-range="day" class="active">Day</button>
+    <button type="button" data-range="week">Week</button>
+    <button type="button" data-range="month">Month</button>
+    <button type="button" data-range="year">Year</button>
+  </div>
+
+  <div class="cards" id="cards"></div>
+
+  <div class="chart">
+    <h2>Optical power
+      <span class="legend"><i style="background:var(--rx)"></i>Rx dBm
+      <i style="background:var(--tx)"></i>Tx dBm</span></h2>
+    <canvas id="cOpt"></canvas>
+  </div>
+
+  <div class="chart">
+    <h2>Module temperature
+      <span class="legend"><i style="background:var(--temp)"></i>°C</span></h2>
+    <canvas id="cTemp"></canvas>
+  </div>
+
+  <footer>
+    Sources: <code>gpon.0.txt</code>, <code>gpon-week.0.txt</code>,
+    <code>gpon-month.0.txt</code>, <code>gpon-year.0.txt</code>.
+    Red bands mark samples where ONU state was not O5 or the stick was
+    unreachable.
+  </footer>
+</div>
+
+<script>
+"use strict";
+// --- config ------------------------------------------------------------
+var SOURCES = {
+  day:   { file:"gpon.0.txt",       label:"raw samples",     aggregate:false, axis:"time"  },
+  week:  { file:"gpon-week.0.txt",  label:"30 min rollups",  aggregate:true,  axis:"daytime" },
+  month: { file:"gpon-month.0.txt", label:"2 hour rollups",  aggregate:true,  axis:"date"  },
+  year:  { file:"gpon-year.0.txt",  label:"daily rollups",   aggregate:true,  axis:"month" }
+};
+var currentRange = "day";
+var REFRESH_MS = 60000;
+
+// --- parse -------------------------------------------------------------
+// RouterOS disk-log line:
+//   May/19/2026 03:56:04 script,info GPONRAW OK | state=Operation State(O5) ...
+//   May/19/2026 04:00:00 script,info GPONWEEK OK | n=15 ok=15 bad=0 ...
+// Entries may be newline-separated OR run together on one line, so we split
+// on the timestamp token itself rather than on newlines.
+var TS = /([A-Z][a-z]{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2}):(\d{2})/g;
+
+function num(rec, key){
+  var m = rec.match(new RegExp(key + "=(-?\\d+(?:\\.\\d+)?)"));
+  return m ? parseFloat(m[1]) : null;
+}
+
+function val(rec, primary, fallback){
+  var v = num(rec, primary);
+  return v !== null ? v : num(rec, fallback);
+}
+
+function parse(text, cfg){
+  var rows = [], m, marks = [];
+  // collect every timestamp position
+  TS.lastIndex = 0;
+  while ((m = TS.exec(text)) !== null){
+    marks.push({ idx:m.index, len:m[0].length, m:m.slice(1) });
+  }
+  for (var i = 0; i < marks.length; i++){
+    var a = marks[i];
+    var end = (i + 1 < marks.length) ? marks[i+1].idx : text.length;
+    var rec = text.slice(a.idx, end);          // ts + this entry's body
+    // Date("May 19, 2026 03:56:04")
+    var d = new Date(a.m[0] + " " + (+a.m[1]) + ", " + a.m[2] + " " +
+                     a.m[3] + ":" + a.m[4] + ":" + a.m[5]);
+    if (isNaN(d)) continue;
+    var ok = cfg.aggregate
+      ? rec.indexOf(" bad=0") !== -1
+      : ((rec.indexOf("GPONRAW OK") !== -1 || rec.indexOf("GPON OK") !== -1) &&
+         rec.indexOf("(O5)") !== -1);
+    rows.push({
+      t:  d.getTime(),
+      ok: ok,
+      rx: val(rec,"rx_avg","rx"), tx: val(rec,"tx_avg","tx"),
+      temp: val(rec,"temp_avg","temp"), v: val(rec,"v_avg","v"),
+      bias: val(rec,"bias_avg","bias"),
+      n: num(rec,"n")
+    });
+  }
+  // last record may be a half-written line during rotation; drop if it has
+  // a timestamp but no recognizable body
+  if (rows.length){
+    var last = rows[rows.length-1];
+    if (!last.ok && last.rx===null && last.temp===null) rows.pop();
+  }
+  return rows;
+}
+
+// --- tiny canvas line chart -------------------------------------------
+function draw(canvas, rows, series, fmt){
+  var dpr = window.devicePixelRatio || 1;
+  var cssW = canvas.clientWidth, cssH = canvas.clientHeight;
+  canvas.width = cssW * dpr; canvas.height = cssH * dpr;
+  var g = canvas.getContext("2d");
+  g.scale(dpr, dpr);
+  g.clearRect(0,0,cssW,cssH);
+  if (rows.length < 2) return;
+
+  var padL=48, padR=10, padT=10, padB=22;
+  var W = cssW - padL - padR, H = cssH - padT - padB;
+  var t0 = rows[0].t, t1 = rows[rows.length-1].t;
+  var tspan = (t1 - t0) || 1;
+
+  // y-range across all series, padded
+  var lo =  Infinity, hi = -Infinity;
+  rows.forEach(function(r){
+    series.forEach(function(s){
+      var y = r[s.key];
+      if (y !== null && isFinite(y)){ if (y<lo) lo=y; if (y>hi) hi=y; }
+    });
+  });
+  if (!isFinite(lo) || !isFinite(hi)){ return; }
+  if (lo === hi){ lo -= 1; hi += 1; }
+  var pad = (hi - lo) * 0.12; lo -= pad; hi += pad;
+
+  function X(t){ return padL + (t - t0)/tspan * W; }
+  function Y(v){ return padT + (1 - (v - lo)/(hi - lo)) * H; }
+
+  // outage bands (state != O5)
+  g.fillStyle = "rgba(248,81,73,0.14)";
+  for (var i=0;i<rows.length;i++){
+    if (!rows[i].ok){
+      var x1 = X(rows[i].t);
+      var x2 = (i+1<rows.length) ? X(rows[i+1].t) : x1+2;
+      g.fillRect(x1, padT, Math.max(2,x2-x1), H);
+    }
+  }
+
+  // grid + y labels (4 ticks)
+  g.strokeStyle = "#21262d"; g.fillStyle = "#8b949e";
+  g.font = "11px ui-monospace,monospace"; g.textAlign = "right";
+  g.textBaseline = "middle";
+  for (var k=0;k<=4;k++){
+    var val = lo + (hi-lo)*k/4;
+    var yy = Y(val);
+    g.beginPath(); g.moveTo(padL,yy); g.lineTo(padL+W,yy); g.stroke();
+    g.fillText(fmt(val), padL-6, yy);
+  }
+  // x labels: compact time for day view, dates for longer rollups.
+  g.textAlign = "center"; g.textBaseline = "top";
+  [0,0.5,1].forEach(function(f){
+    var tt = t0 + tspan*f;
+    g.fillText(axisLabel(tt), padL + W*f, padT+H+6);
+  });
+
+  // series lines (skip nulls -> break the line)
+  series.forEach(function(s){
+    g.strokeStyle = s.color; g.lineWidth = 1.5;
+    g.beginPath();
+    var pen = false;
+    rows.forEach(function(r){
+      var v = r[s.key];
+      if (v === null || !isFinite(v)){ pen = false; return; }
+      var x = X(r.t), y = Y(v);
+      if (!pen){ g.moveTo(x,y); pen = true; } else { g.lineTo(x,y); }
+    });
+    g.stroke();
+  });
+}
+
+// --- render ------------------------------------------------------------
+function fnum(x,d){ return x===null||!isFinite(x) ? "—" : x.toFixed(d); }
+
+function axisLabel(t){
+  var d = new Date(t);
+  var mon = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()];
+  var hhmm = String(d.getHours()).padStart(2,"0") + ":" +
+             String(d.getMinutes()).padStart(2,"0");
+  var axis = SOURCES[currentRange].axis;
+  if (axis === "daytime") return mon + " " + d.getDate() + " " + hhmm;
+  if (axis === "date") return mon + " " + d.getDate();
+  if (axis === "month") return mon + " " + String(d.getFullYear()).slice(2);
+  return hhmm;
+}
+
+function render(rows){
+  var badge = document.getElementById("badge");
+  var cards = document.getElementById("cards");
+  var upd   = document.getElementById("updated");
+  var cfg = SOURCES[currentRange];
+
+  if (!rows.length){
+    badge.textContent = "no data"; badge.className = "badge bad";
+    upd.textContent = cfg.file + " empty or unreadable";
+    cards.innerHTML = "";
+    return;
+  }
+  var last = rows[rows.length-1];
+  badge.textContent = last.ok ? "O5 — operational" : "NOT O5 — check fiber";
+  badge.className = "badge " + (last.ok ? "ok" : "bad");
+  upd.textContent = cfg.file + " · last sample " +
+                    new Date(last.t).toLocaleString() + " · " +
+                    rows.length + " " + cfg.label;
+
+  var defs = [
+    ["Rx power", fnum(last.rx,2), "dBm"],
+    ["Tx power", fnum(last.tx,2), "dBm"],
+    ["Temperature", fnum(last.temp,1), "°C"],
+    ["Voltage", fnum(last.v,2), "V"],
+    ["Bias current", fnum(last.bias,1), "mA"]
+  ];
+  cards.innerHTML = defs.map(function(d){
+    return '<div class="card"><div class="k">'+d[0]+'</div>'+
+           '<div class="v">'+d[1]+' <span class="u">'+d[2]+'</span></div></div>';
+  }).join("");
+
+  draw(document.getElementById("cOpt"), rows, [
+    {key:"rx", color:getCss("--rx")},
+    {key:"tx", color:getCss("--tx")}
+  ], function(v){ return v.toFixed(1); });
+
+  draw(document.getElementById("cTemp"), rows, [
+    {key:"temp", color:getCss("--temp")}
+  ], function(v){ return v.toFixed(1); });
+}
+
+function getCss(name){
+  return getComputedStyle(document.documentElement)
+           .getPropertyValue(name).trim();
+}
+
+// --- fetch loop --------------------------------------------------------
+var lastRows = [];
+function tick(){
+  var cfg = SOURCES[currentRange];
+  fetch(cfg.file + "?_=" + Date.now(), { cache:"no-store" })
+    .then(function(r){ if(!r.ok) throw new Error(r.status); return r.text(); })
+    .then(function(txt){ lastRows = parse(txt, cfg); render(lastRows); })
+    .catch(function(e){
+      lastRows = [];
+      render(lastRows);
+      document.getElementById("updated").textContent =
+        cfg.file + " fetch failed: " + e.message;
+    });
+}
+window.addEventListener("resize", function(){ render(lastRows); });
+document.getElementById("ranges").addEventListener("click", function(e){
+  if (e.target.tagName !== "BUTTON") return;
+  currentRange = e.target.getAttribute("data-range");
+  Array.prototype.forEach.call(this.querySelectorAll("button"), function(b){
+    b.className = b.getAttribute("data-range") === currentRange ? "active" : "";
+  });
+  tick();
+});
+tick();
+setInterval(tick, REFRESH_MS);
+</script>
+</body>
+</html>
