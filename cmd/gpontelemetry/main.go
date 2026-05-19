@@ -131,14 +131,20 @@ func fetchPONStatus() (map[string]string, error) {
 		"save":       {"Login"},
 		"submit-url": {"/admin/login.asp"},
 	}
-	if resp, err := client.PostForm(base+"/boaform/admin/formLogin", form); err == nil {
-		io.Copy(io.Discard, resp.Body)
-		resp.Body.Close()
-	}
-
-	resp, err := client.Get(base + "/status_pon.asp")
+	resp, err := client.PostForm(base+"/boaform/admin/formLogin", form)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("login failed: %w", err)
+	}
+	io.Copy(io.Discard, resp.Body)
+	resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("login HTTP %d", resp.StatusCode)
+	}
+	defer logout(client, base)
+
+	resp, err = client.Get(base + "/status_pon.asp")
+	if err != nil {
+		return nil, fmt.Errorf("status fetch failed: %w", err)
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
@@ -166,6 +172,19 @@ func fetchPONStatus() (map[string]string, error) {
 		}
 	}
 	return status, nil
+}
+
+func logout(client *http.Client, base string) {
+	form := url.Values{
+		"save":       {"Logout"},
+		"submit-url": {"/admin/logout.asp"},
+	}
+	resp, err := client.PostForm(base+"/boaform/admin/formLogout", form)
+	if err != nil {
+		return
+	}
+	io.Copy(io.Discard, resp.Body)
+	resp.Body.Close()
 }
 
 func stickURL() string {

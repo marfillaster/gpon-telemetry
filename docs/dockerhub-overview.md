@@ -72,6 +72,7 @@ Expected firmware behavior:
 
 - Login at `/boaform/admin/formLogin`
 - PON status at `/status_pon.asp`
+- Logout at `/boaform/admin/formLogout`
 - Status labels for temperature, voltage, Tx power, Rx power, bias current,
   and ONU state
 

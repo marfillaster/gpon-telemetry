@@ -66,6 +66,12 @@ Then fetches:
 GET /status_pon.asp
 ```
 
+Then logs out with:
+
+```text
+POST /boaform/admin/formLogout
+```
+
 Expected labels:
 
 - `Temperature`
@@ -90,6 +96,7 @@ these are true:
 - Login uses `/boaform/admin/formLogin` with `username`, `password`, `save`,
   and `submit-url` form fields.
 - PON status is available at `/status_pon.asp`.
+- Logout uses `/boaform/admin/formLogout` with `save=Logout`.
 - The status table contains the labels listed above, or close enough HTML for
   the parser to find `<b>Label</b>` followed by the value cell.
 
