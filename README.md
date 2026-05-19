@@ -9,25 +9,11 @@ static dashboard serving, and longer rollups.
 
 ## Quick Start
 
-Build the arm64 image:
+On an arm64 RouterOS device with Containers enabled, use the published image:
 
-```sh
-make image IMAGE=docker.io/marfillaster/gpon-telemetry TAG=alpine
+```text
+docker.io/marfillaster/gpon-telemetry:alpine-arm64
 ```
-
-Publish it to Docker Hub:
-
-```sh
-docker login
-make push-release IMAGE=docker.io/marfillaster/gpon-telemetry TAG=alpine ARCH_TAG=arm64
-```
-
-This publishes two tags:
-
-- `alpine`
-- `alpine-arm64`
-
-Install on RouterOS from Docker Hub:
 
 1. Copy [routeros/install.remote-image.rsc](routeros/install.remote-image.rsc)
    to the router.
@@ -139,7 +125,7 @@ contains:
 - `gpon-month.0.txt` - 2-hour rollups, kept for 31 days
 - `gpon-year.0.txt` - daily rollups, kept for 366 days
 
-## Build
+## Development Build
 
 For MikroTik RB5009 and other arm64 RouterOS containers:
 
@@ -149,7 +135,19 @@ make save IMAGE=docker.io/marfillaster/gpon-telemetry TAG=alpine
 ```
 
 The `Makefile` cross-compiles static arm64 Go binaries before building the
-image. Use `make push ...` to publish to Docker Hub.
+image.
+
+Publish a development build to Docker Hub:
+
+```sh
+docker login
+make push-release IMAGE=docker.io/marfillaster/gpon-telemetry TAG=alpine ARCH_TAG=arm64
+```
+
+This publishes two tags:
+
+- `alpine`
+- `alpine-arm64`
 
 Manual equivalent:
 
