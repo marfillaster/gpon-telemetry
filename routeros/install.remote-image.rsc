@@ -1,13 +1,13 @@
 # GPON telemetry install for RouterOS 7.x containers using Docker Hub.
 #
 # Before import:
-#   1. Replace marfillaster/gpon-telemetry:2026.05.19-alpine3.22-arm64 with your image.
+#   1. Replace marfillaster/gpon-telemetry:alpine-arm64 with your image.
 #   2. Replace storage volume, addresses, and credentials below.
 #   3. Ensure RouterOS can resolve and reach registry-1.docker.io.
 #   4. Import with: /import file-name=install.remote-image.rsc
 
 :local containerName "gpontelemetry"
-:local remoteImage "docker.io/marfillaster/gpon-telemetry:2026.05.19-alpine3.22-arm64"
+:local remoteImage "docker.io/marfillaster/gpon-telemetry:alpine-arm64"
 :local storageRoot "<storage-volume>"
 :local logDir ($storageRoot . "/gpontelemetry/logs")
 :local vethName "veth-gpontelemetry"

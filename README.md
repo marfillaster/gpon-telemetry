@@ -12,25 +12,20 @@ static dashboard serving, and longer rollups.
 Build the arm64 image:
 
 ```sh
-make image IMAGE=docker.io/marfillaster/gpon-telemetry TAG=latest
+make image IMAGE=docker.io/marfillaster/gpon-telemetry TAG=alpine
 ```
 
 Publish it to Docker Hub:
 
 ```sh
 docker login
-make push-release IMAGE=docker.io/marfillaster/gpon-telemetry \
-  TAG=latest VERSION=2026.05.19 BASE_TAG=alpine3.22 ARCH_TAG=arm64
+make push-release IMAGE=docker.io/marfillaster/gpon-telemetry TAG=alpine ARCH_TAG=arm64
 ```
 
-This publishes six tags:
+This publishes two tags:
 
-- `latest`
-- `2026.05.19`
-- `arm64`
-- `2026.05.19-arm64`
-- `alpine3.22-arm64`
-- `2026.05.19-alpine3.22-arm64`
+- `alpine`
+- `alpine-arm64`
 
 Install on RouterOS from Docker Hub:
 
@@ -39,7 +34,7 @@ Install on RouterOS from Docker Hub:
 2. Edit these placeholders in the script:
 
 ```routeros
-:local remoteImage "docker.io/marfillaster/gpon-telemetry:2026.05.19-alpine3.22-arm64"
+:local remoteImage "docker.io/marfillaster/gpon-telemetry:alpine-arm64"
 :local storageRoot "<storage-volume>"
 :local containerIPv4 "<container-ipv4-cidr>"
 :local gatewayIPv4 "<router-ipv4>"
@@ -59,7 +54,7 @@ Open the dashboard at the container IP on port `3000`.
 If your router cannot pull from Docker Hub, build a tarball instead:
 
 ```sh
-make save IMAGE=docker.io/marfillaster/gpon-telemetry TAG=latest
+make save IMAGE=docker.io/marfillaster/gpon-telemetry TAG=alpine
 ```
 
 Upload `gpon-telemetry.tar` and use [routeros/install.rsc](routeros/install.rsc).
@@ -149,8 +144,8 @@ contains:
 For MikroTik RB5009 and other arm64 RouterOS containers:
 
 ```sh
-make image IMAGE=docker.io/marfillaster/gpon-telemetry TAG=latest
-make save IMAGE=docker.io/marfillaster/gpon-telemetry TAG=latest
+make image IMAGE=docker.io/marfillaster/gpon-telemetry TAG=alpine
+make save IMAGE=docker.io/marfillaster/gpon-telemetry TAG=alpine
 ```
 
 The `Makefile` cross-compiles static arm64 Go binaries before building the
@@ -163,19 +158,11 @@ CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath \
   -ldflags "-s -w" -o gponserve ./cmd/gponserve
 CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath \
   -ldflags "-s -w" -o gpontelemetry ./cmd/gpontelemetry
-docker build --platform linux/arm64 -t docker.io/marfillaster/gpon-telemetry:latest .
-docker tag docker.io/marfillaster/gpon-telemetry:latest docker.io/marfillaster/gpon-telemetry:2026.05.19
-docker tag docker.io/marfillaster/gpon-telemetry:latest docker.io/marfillaster/gpon-telemetry:arm64
-docker tag docker.io/marfillaster/gpon-telemetry:latest docker.io/marfillaster/gpon-telemetry:2026.05.19-arm64
-docker tag docker.io/marfillaster/gpon-telemetry:latest docker.io/marfillaster/gpon-telemetry:alpine3.22-arm64
-docker tag docker.io/marfillaster/gpon-telemetry:latest docker.io/marfillaster/gpon-telemetry:2026.05.19-alpine3.22-arm64
-docker push docker.io/marfillaster/gpon-telemetry:latest
-docker push docker.io/marfillaster/gpon-telemetry:2026.05.19
-docker push docker.io/marfillaster/gpon-telemetry:arm64
-docker push docker.io/marfillaster/gpon-telemetry:2026.05.19-arm64
-docker push docker.io/marfillaster/gpon-telemetry:alpine3.22-arm64
-docker push docker.io/marfillaster/gpon-telemetry:2026.05.19-alpine3.22-arm64
-docker save docker.io/marfillaster/gpon-telemetry:latest -o gpon-telemetry.tar
+docker build --platform linux/arm64 -t docker.io/marfillaster/gpon-telemetry:alpine .
+docker tag docker.io/marfillaster/gpon-telemetry:alpine docker.io/marfillaster/gpon-telemetry:alpine-arm64
+docker push docker.io/marfillaster/gpon-telemetry:alpine
+docker push docker.io/marfillaster/gpon-telemetry:alpine-arm64
+docker save docker.io/marfillaster/gpon-telemetry:alpine -o gpon-telemetry.tar
 ```
 
 ## RouterOS Flow
