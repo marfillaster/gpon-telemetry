@@ -7,6 +7,9 @@ It is intentionally not a metrics stack. RouterOS keeps the raw 24h log using
 its own disk logger and rotation. A tiny container does the HTTP scrape,
 static dashboard serving, and longer rollups.
 
+Background and hardware context:
+[Replacing a Converge ONT with a GPON SFP stick](https://marfillaster.github.io/converge-gpon-sfp-stick-mikrotik/).
+
 ## Quick Start
 
 On an arm64 RouterOS device with Containers enabled, use the published image:

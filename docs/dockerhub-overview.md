@@ -7,6 +7,9 @@ The container polls the GPON stick over HTTP, serves a static dashboard on port
 `3000`, and builds week/month/year rollups from RouterOS-managed raw logs.
 RouterOS owns the raw 24-hour log and disk rotation.
 
+Background and hardware context:
+https://marfillaster.github.io/converge-gpon-sfp-stick-mikrotik/
+
 ## Tags
 
 - `alpine` - Alpine-based arm64 image
@@ -70,5 +73,6 @@ Expected firmware behavior:
 
 ## Links
 
+- Blog post: https://marfillaster.github.io/converge-gpon-sfp-stick-mikrotik/
 - GitHub: https://github.com/marfillaster/gpon-telemetry
 - Release: https://github.com/marfillaster/gpon-telemetry/releases/tag/v2026.05.19
