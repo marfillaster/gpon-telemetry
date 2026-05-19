@@ -20,15 +20,17 @@ Publish it to Docker Hub:
 ```sh
 docker login
 make push-release IMAGE=docker.io/marfillaster/gpon-telemetry \
-  TAG=latest VERSION=2026.05.19 ARCH_TAG=arm64
+  TAG=latest VERSION=2026.05.19 BASE_TAG=alpine3.22 ARCH_TAG=arm64
 ```
 
-This publishes four tags:
+This publishes six tags:
 
 - `latest`
 - `2026.05.19`
 - `arm64`
 - `2026.05.19-arm64`
+- `alpine3.22-arm64`
+- `2026.05.19-alpine3.22-arm64`
 
 Install on RouterOS from Docker Hub:
 
@@ -37,7 +39,7 @@ Install on RouterOS from Docker Hub:
 2. Edit these placeholders in the script:
 
 ```routeros
-:local remoteImage "docker.io/marfillaster/gpon-telemetry:2026.05.19-arm64"
+:local remoteImage "docker.io/marfillaster/gpon-telemetry:2026.05.19-alpine3.22-arm64"
 :local storageRoot "<storage-volume>"
 :local containerIPv4 "<container-ipv4-cidr>"
 :local gatewayIPv4 "<router-ipv4>"
@@ -165,10 +167,14 @@ docker build --platform linux/arm64 -t docker.io/marfillaster/gpon-telemetry:lat
 docker tag docker.io/marfillaster/gpon-telemetry:latest docker.io/marfillaster/gpon-telemetry:2026.05.19
 docker tag docker.io/marfillaster/gpon-telemetry:latest docker.io/marfillaster/gpon-telemetry:arm64
 docker tag docker.io/marfillaster/gpon-telemetry:latest docker.io/marfillaster/gpon-telemetry:2026.05.19-arm64
+docker tag docker.io/marfillaster/gpon-telemetry:latest docker.io/marfillaster/gpon-telemetry:alpine3.22-arm64
+docker tag docker.io/marfillaster/gpon-telemetry:latest docker.io/marfillaster/gpon-telemetry:2026.05.19-alpine3.22-arm64
 docker push docker.io/marfillaster/gpon-telemetry:latest
 docker push docker.io/marfillaster/gpon-telemetry:2026.05.19
 docker push docker.io/marfillaster/gpon-telemetry:arm64
 docker push docker.io/marfillaster/gpon-telemetry:2026.05.19-arm64
+docker push docker.io/marfillaster/gpon-telemetry:alpine3.22-arm64
+docker push docker.io/marfillaster/gpon-telemetry:2026.05.19-alpine3.22-arm64
 docker save docker.io/marfillaster/gpon-telemetry:latest -o gpon-telemetry.tar
 ```
 

@@ -1,6 +1,7 @@
 IMAGE ?= docker.io/marfillaster/gpon-telemetry
 TAG ?= latest
 VERSION ?= $(shell date +%Y.%m.%d)
+BASE_TAG ?= alpine3.22
 ARCH_TAG ?= arm64
 PLATFORM ?= linux/arm64
 TAR ?= gpon-telemetry.tar
@@ -21,6 +22,8 @@ tag-release: image
 	docker tag $(IMAGE):$(TAG) $(IMAGE):$(VERSION)
 	docker tag $(IMAGE):$(TAG) $(IMAGE):$(ARCH_TAG)
 	docker tag $(IMAGE):$(TAG) $(IMAGE):$(VERSION)-$(ARCH_TAG)
+	docker tag $(IMAGE):$(TAG) $(IMAGE):$(BASE_TAG)-$(ARCH_TAG)
+	docker tag $(IMAGE):$(TAG) $(IMAGE):$(VERSION)-$(BASE_TAG)-$(ARCH_TAG)
 
 save: image
 	docker save $(IMAGE):$(TAG) -o $(TAR)
@@ -33,6 +36,8 @@ push-release: tag-release
 	docker push $(IMAGE):$(VERSION)
 	docker push $(IMAGE):$(ARCH_TAG)
 	docker push $(IMAGE):$(VERSION)-$(ARCH_TAG)
+	docker push $(IMAGE):$(BASE_TAG)-$(ARCH_TAG)
+	docker push $(IMAGE):$(VERSION)-$(BASE_TAG)-$(ARCH_TAG)
 
 clean:
 	rm -f gponserve gpontelemetry $(TAR)
