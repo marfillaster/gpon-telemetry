@@ -243,3 +243,7 @@ Run inside the container:
 
 `poll` and `poll-only` exist for local testing, but the RouterOS install uses
 `sample` so raw retention remains RouterOS-managed.
+
+## License
+
+MIT. See [LICENSE](LICENSE).

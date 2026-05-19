@@ -81,3 +81,4 @@ Expected firmware behavior:
 - Blog post: https://marfillaster.github.io/converge-gpon-sfp-stick-mikrotik/
 - GitHub: https://github.com/marfillaster/gpon-telemetry
 - Release: https://github.com/marfillaster/gpon-telemetry/releases/tag/v2026.05.19
+- License: MIT
