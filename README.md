@@ -10,6 +10,10 @@ static dashboard serving, and longer rollups.
 Background and hardware context:
 [Replacing a Converge ONT with a GPON SFP stick](https://marfillaster.github.io/converge-gpon-sfp-stick-mikrotik/).
 
+## Dashboard
+
+![GPON telemetry dashboard](docs/dashboard-screenshot.png)
+
 ## Quick Start
 
 On an arm64 RouterOS device with Containers enabled, use the published image:

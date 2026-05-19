@@ -10,6 +10,10 @@ RouterOS owns the raw 24-hour log and disk rotation.
 Background and hardware context:
 https://marfillaster.github.io/converge-gpon-sfp-stick-mikrotik/
 
+## Dashboard
+
+![GPON telemetry dashboard](https://raw.githubusercontent.com/marfillaster/gpon-telemetry/main/docs/dashboard-screenshot.png)
+
 ## Tags
 
 - `alpine` - Alpine-based arm64 image
